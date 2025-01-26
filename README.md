@@ -27,9 +27,10 @@ This project uses three main data sources:
 
 This repository is compatible with **Python 3.11**. The required Python packages are listed in `requirements.txt`. To install the required dependencies, run the following command:
 
+
 ```bash
 pip install -r requirements.txt
-```bash
+```
 
 
 
@@ -55,4 +56,4 @@ Run the pipeline script:
 
 ```bash
 python pipeline.py
-```bash
+```
