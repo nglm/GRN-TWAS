@@ -55,6 +55,7 @@ gene2,4.1,2.1,5.2
 id,sample1,sample2,sample3
 snp1,0,1,0
 snp2,1,0,1
+```
 
 
 
