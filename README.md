@@ -23,15 +23,15 @@ This project uses three main data sources:
 
 3. **Reference dataset of genotype and gene expression**: Individual-level genotype data and RNA sequencing-based gene expression profiles for the same individuals
 
-## Requirements
+## GRN-TWAS Pipeline
 
 This repository is compatible with **Python 3.11**. The required Python packages are listed in `requirements.txt`. To install the required dependencies, run the following command:
 
 ```bash
 pip install -r requirements.txt
+```bash
 
 
-## GRN-TWAS Pipeline
 
 This repository includes a Python pipeline that automates the three main stages of our framework:
 
@@ -55,3 +55,4 @@ Run the pipeline script:
 
 ```bash
 python pipeline.py
+```bash
