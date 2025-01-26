@@ -1,13 +1,13 @@
-# Gene Regulatory Network-Driven Transcriptome-Wide Association Studies (GRN-TWAS)
+### Gene Regulatory Network-Driven Transcriptome-Wide Association Studies (GRN-TWAS)
 
 This repository contains the implementation of a novel framework that integrates **tissue-specific gene regulatory networks (GRNs)** into **transcriptome-wide association studies (TWAS)** for studying gene-complex disease associations.
 
-## Key Features
+### Key Features
 - Utilizes **Findr** for GRN reconstruction from genotype and transcriptome data.
 - Predicts gene expression by incorporating both **cis** and **trans** regulatory components.
 - Evaluates gene-disease associations using **GWAS summary statistics**.
 
-## Data Sources
+### Data Sources
 This project uses three main data sources:
 
 1. **Genome-wide summary statistics**  
@@ -28,10 +28,39 @@ This project uses three main data sources:
 
 ---
 
-## Network Reconstruction Input Format
-The **Network Reconstruction** step requires a reference dataset in the following format:
 
-### File Format
+
+
+### GRN-TWAS Pipeline
+
+This repository includes a Python pipeline that automates the three main stages of our framework:
+
+1. **Network Reconstruction**: 
+   - Reconstructs tissue-specific gene regulatory networks (GRNs) using reference genotype and gene expression data.
+   - Leverages tools like `Findr` for causal inference to build GRNs.
+
+2. **Model Training**: 
+   - Trains a machine learning model (e.g., Ridge regression) to predict gene expression by incorporating cis- and trans-eQTL regulatory effects derived from GRNs.
+
+3. **Association Analysis**: 
+   - Integrates GWAS summary statistics with predicted gene expression to evaluate gene-disease associations.
+
+### Running the Pipeline
+
+To execute the full pipeline, ensure the following inputs are prepared:
+- **Reference Dataset**: A file containing genotype and gene expression data (`reference_dataset.tsv`).
+- **GWAS Summary Statistics**: A file with genome-wide summary statistics (`gwas_summary_statistics.tsv`).
+
+Run the pipeline script:
+
+```bash
+python ../src/grn_gwas_main.py 
+```
+
+
+
+
+### Input Format
 The input file must be a gzipped CSV file (`.csv.gz`) containing the following columns:
 
 1. **id**  
@@ -58,29 +87,3 @@ snp2,1,0,1
 ```
 
 
-
-
-## GRN-TWAS Pipeline
-
-This repository includes a Python pipeline that automates the three main stages of our framework:
-
-1. **Network Reconstruction**: 
-   - Reconstructs tissue-specific gene regulatory networks (GRNs) using reference genotype and gene expression data.
-   - Leverages tools like `Findr` for causal inference to build GRNs.
-
-2. **Model Training**: 
-   - Trains a machine learning model (e.g., Ridge regression) to predict gene expression by incorporating cis- and trans-eQTL regulatory effects derived from GRNs.
-
-3. **Association Analysis**: 
-   - Integrates GWAS summary statistics with predicted gene expression to evaluate gene-disease associations.
-
-### Running the Pipeline
-
-To execute the full pipeline, ensure the following inputs are prepared:
-- **Reference Dataset**: A file containing genotype and gene expression data (`reference_dataset.tsv`).
-- **GWAS Summary Statistics**: A file with genome-wide summary statistics (`gwas_summary_statistics.tsv`).
-
-Run the pipeline script:
-
-```bash
-python ../src/grn_gwas_main.py
