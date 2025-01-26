@@ -38,13 +38,13 @@ This repository includes a Python pipeline that automates the three main stages 
 
 1. **Network Reconstruction**: 
    - Reconstructs tissue-specific gene regulatory networks (GRNs) using reference genotype and gene expression data.
-   - Leverages tools like `Findr` for causal inference to build GRNs.
+   - Leverages `Findr` for causal inference to build GRNs.
 
 2. **Model Training**: 
    - Trains a machine learning model (e.g., Ridge regression) to predict gene expression by incorporating cis- and trans-eQTL regulatory effects derived from GRNs.
 
 3. **Association Analysis**: 
-   - Integrates GWAS summary statistics with predicted gene expression to evaluate gene-disease associations.
+   - Integrates GWAS summary statistics with prediction model parameter to evaluate gene-disease associations.
 
 ### Running the Pipeline
 
