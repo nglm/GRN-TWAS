@@ -83,4 +83,4 @@ To execute the full pipeline, ensure the following inputs are prepared:
 Run the pipeline script:
 
 ```bash
-python ../src/pipeline.py
+python ../src/grn_gwas_main.py
