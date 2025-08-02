@@ -59,7 +59,7 @@ This project uses three main data sources:
    - **se_gc**: The standard error of the estimated effect size.
 
       ```plaintext
-      snp_id     logOR      se_gc
+      snp_id     beta      se_beta
       rs5         0.050       0.27
       rs1         0.005       0.01
       rs3         0.003       0.01
@@ -77,9 +77,9 @@ This project uses three main data sources:
 
 
 
-### GRN-TWAS Pipeline
+<!-- ### GRN-TWAS Pipeline
 
-This repository includes a Python pipeline that automates the three main stages of our framework:
+This repository includes a Julia pipeline that automates the three main stages of our framework:
 
 1. **Network Reconstruction**: 
    - Reconstructs tissue-specific gene regulatory networks (GRNs) using reference genotype and gene expression data.
@@ -93,15 +93,15 @@ This repository includes a Python pipeline that automates the three main stages 
 
 ### Running the Pipeline
 
-To execute the full pipeline, ensure the following inputs are prepared:
+To execute the full pipeline, ensure the following inputs are prepared: -->
 <!-- - **Reference Dataset**: A file containing genotype and gene expression data (`reference_dataset.tsv`).
 - **GWAS Summary Statistics**: A file with genome-wide summary statistics (`gwas_summary_statistics.tsv`). -->
 
-Run the pipeline script:
+<!-- Run the pipeline script:
 
 ```bash
 python ../src/grn_gwas_main.py 
-```
+``` -->
 
 
 
