@@ -1,7 +1,12 @@
 import os
+"""
+structure_learning.py
+---------------------
+Module for reconstructing gene regulatory networks (GRNs) using Findr.
+Contains functions for calculating posterior probabilities and building GRNs from expression and genotype data.
+"""
 import pandas as pd
 import numpy as np
-import yaml
 import findr
 import networkx as nx
 import json
@@ -9,7 +14,15 @@ import json
 # Function to calculate p-values using Findr
 def calculate_p_values(expression_A, expression_ALL, genotype, method, n=None):
     """
-    Calculate posterior probabilities using Findr.
+    Calculate posterior probabilities using Findr for given expression and genotype data.
+    Args:
+        expression_A (np.ndarray): Expression matrix for target genes.
+        expression_ALL (np.ndarray): Expression matrix for all genes.
+        genotype (np.ndarray): Genotype matrix.
+        method: Findr library object.
+        n (int, optional): Number of genes to consider. If None, use all.
+    Returns:
+        dict: Dictionary of posterior probabilities and intermediate results.
     """
     p0_results = method.pij_rank(dt=expression_A, dt2=expression_ALL, nodiag=True)
     p0 = p0_results['p'][:, :n] if n else p0_results['p']
@@ -38,7 +51,14 @@ def calculate_p_values(expression_A, expression_ALL, genotype, method, n=None):
 # Function to reconstruct GRN
 def reconstruct_grn(input_file, output_folder, findr_path, posterior_threshold=0.75):
     """
-    Reconstruct a gene regulatory network (GRN) for a single tissue dataset.
+    Reconstruct a gene regulatory network (GRN) for a single tissue dataset using Findr.
+    Args:
+        input_file (str): Path to input dataset (CSV).
+        output_folder (str): Directory to save GRN results.
+        findr_path (str): Path to Findr library.
+        posterior_threshold (float): Threshold for posterior probabilities.
+    Returns:
+        None
     """
     print(f"Reconstructing GRN for dataset: {input_file}")
 
@@ -87,6 +107,10 @@ def reconstruct_grn(input_file, output_folder, findr_path, posterior_threshold=0
     print(f"Graph info saved to {graph_info_file}")
 
 if __name__ == "__main__":
+    """
+    Main entry point for GRN reconstruction using Findr.
+    Parses command-line arguments and runs the reconstruction pipeline.
+    """
     import argparse
 
     # Command-line arguments

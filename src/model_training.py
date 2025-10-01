@@ -1,16 +1,25 @@
+"""
+model_training.py
+-----------------
+Module for training Ridge regression models for gene expression prediction using GRN structure.
+Contains functions for loading graphs, extracting data, training models, and optimizing weights.
+"""
 import os
 import pandas as pd
 import numpy as np
 import pickle
 from sklearn.linear_model import RidgeCV
 from sklearn.metrics import r2_score
-from sklearn.preprocessing import StandardScaler
 from scipy.optimize import minimize
 import networkx as nx
 
 def load_graph(graph_file):
     """
     Load a directed acyclic graph (DAG) from a pickle file.
+    Args:
+        graph_file (str): Path to the pickle file containing the graph.
+    Returns:
+        networkx.DiGraph: Loaded directed acyclic graph.
     """
     with open(graph_file, 'rb') as f:
         graph = pickle.load(f)
@@ -20,6 +29,12 @@ def load_graph(graph_file):
 def get_y_data(data, gene_id, samples):
     """
     Extract gene expression data for a specific gene and samples.
+    Args:
+        data (pd.DataFrame): Expression data.
+        gene_id (str): Gene identifier.
+        samples (list): List of sample IDs.
+    Returns:
+        np.ndarray: Expression values for the gene across samples.
     """
     y = data[data['id'] == gene_id][samples].to_numpy(dtype='float64')
     return y.flatten()
@@ -27,6 +42,12 @@ def get_y_data(data, gene_id, samples):
 def get_x_data(data, snp_ids, samples):
     """
     Extract genotype data for specific SNPs and samples.
+    Args:
+        data (pd.DataFrame): Genotype data.
+        snp_ids (list): List of SNP identifiers.
+        samples (list): List of sample IDs.
+    Returns:
+        np.ndarray: Genotype values for the SNPs across samples.
     """
     x = data[data['rs_id'].isin(snp_ids)][samples].to_numpy(dtype='float64')
     return x.T
@@ -34,6 +55,12 @@ def get_x_data(data, snp_ids, samples):
 def train_ridge(X_cis, X_trans, y):
     """
     Train Ridge regression models for cis and trans components.
+    Args:
+        X_cis (np.ndarray): Cis genotype matrix.
+        X_trans (np.ndarray or None): Trans genotype matrix.
+        y (np.ndarray): Gene expression vector.
+    Returns:
+        tuple: (cis_model, trans_model)
     """
     cis_model = RidgeCV(alphas=np.logspace(-3, 3, 10)).fit(X_cis, y)
     residuals = y - cis_model.predict(X_cis)
@@ -48,6 +75,14 @@ def train_ridge(X_cis, X_trans, y):
 def optimize_weights(y, X_cis, X_trans, cis_model, trans_model):
     """
     Optimize weights for combining cis and trans predictions.
+    Args:
+        y (np.ndarray): Gene expression vector.
+        X_cis (np.ndarray): Cis genotype matrix.
+        X_trans (np.ndarray): Trans genotype matrix.
+        cis_model: Trained Ridge model for cis component.
+        trans_model: Trained Ridge model for trans component.
+    Returns:
+        np.ndarray: Optimized weights for cis and trans predictions.
     """
     def objective(weights):
         w_cis, w_trans = weights
@@ -64,6 +99,13 @@ def optimize_weights(y, X_cis, X_trans, cis_model, trans_model):
 def process_dataset(expression_file, genotype_file, graph_file, output_folder):
     """
     Process a single dataset to train Ridge regression models for gene expression prediction.
+    Args:
+        expression_file (str): Path to gene expression file.
+        genotype_file (str): Path to genotype file.
+        graph_file (str): Path to DAG pickle file.
+        output_folder (str): Directory to save results.
+    Returns:
+        None
     """
     print(f"Processing dataset: {expression_file}, {genotype_file}")
 
@@ -113,6 +155,10 @@ def process_dataset(expression_file, genotype_file, graph_file, output_folder):
     print(f"Results saved to {output_file}")
 
 if __name__ == "__main__":
+    """
+    Main entry point for model training.
+    Parses command-line arguments and runs the model training pipeline.
+    """
     import argparse
 
     # Command-line arguments

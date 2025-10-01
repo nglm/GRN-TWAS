@@ -1,10 +1,22 @@
+"""
+grn_twas_main.py
+----------------
+Main pipeline script for GRN-based TWAS analysis.
+Coordinates structure learning, model training, and association testing steps.
+"""
 import os
 import argparse
 from subprocess import run
 
 def run_structure_learning(expression_file, genotype_file, output_folder):
     """
-    Run the structure learning step.
+    Run the structure learning step of the pipeline.
+    Args:
+        expression_file (str): Path to gene expression file.
+        genotype_file (str): Path to genotype file.
+        output_folder (str): Directory to save structure learning outputs.
+    Returns:
+        str: Path to saved graph file.
     """
     print("Starting structure learning...")
     structure_output = os.path.join(output_folder, "structure")
@@ -20,7 +32,14 @@ def run_structure_learning(expression_file, genotype_file, output_folder):
 
 def run_model_training(expression_file, genotype_file, graph_file, output_folder):
     """
-    Run the model training step.
+    Run the model training step of the pipeline.
+    Args:
+        expression_file (str): Path to gene expression file.
+        genotype_file (str): Path to genotype file.
+        graph_file (str): Path to graph file.
+        output_folder (str): Directory to save model training outputs.
+    Returns:
+        str: Path to trained model file.
     """
     print("Starting model training...")
     training_output = os.path.join(output_folder, "model_training")
@@ -37,7 +56,15 @@ def run_model_training(expression_file, genotype_file, graph_file, output_folder
 
 def run_association_test(expression_file, genotype_file, graph_file, gwas_file, output_folder):
     """
-    Run the association testing step.
+    Run the association testing step of the pipeline.
+    Args:
+        expression_file (str): Path to gene expression file.
+        genotype_file (str): Path to genotype file.
+        graph_file (str): Path to graph file.
+        gwas_file (str): Path to GWAS summary statistics file.
+        output_folder (str): Directory to save association results.
+    Returns:
+        str: Path to association results file.
     """
     print("Starting association testing...")
     association_output = os.path.join(output_folder, "association")
@@ -54,6 +81,10 @@ def run_association_test(expression_file, genotype_file, graph_file, gwas_file, 
     return association_file
 
 def main():
+    """
+    Main entry point for the GRN-based TWAS pipeline.
+    Parses command-line arguments and runs all pipeline steps.
+    """
     parser = argparse.ArgumentParser(description="Run the integrated pipeline for GRN-based TWAS.")
     parser.add_argument("--expression_file", type=str, required=True, help="Path to the gene expression file.")
     parser.add_argument("--genotype_file", type=str, required=True, help="Path to the genotype file.")
@@ -92,4 +123,7 @@ def main():
     print(f"Pipeline completed successfully. Association results saved at: {association_file}")
 
 if __name__ == "__main__":
+    """
+    Main script execution for GRN-based TWAS pipeline.
+    """
     main()

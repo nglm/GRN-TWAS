@@ -1,4 +1,9 @@
-import os
+"""
+association_test.py
+-------------------
+Module for gene-disease association analysis using GRN structure and GWAS summary statistics.
+Contains functions for loading graphs, extracting genotype data, calculating Z-scores, and processing associations.
+"""
 import pandas as pd
 import numpy as np
 import pickle
@@ -8,6 +13,10 @@ import json
 def load_graph(graph_file):
     """
     Load a directed acyclic graph (DAG) from a pickle file.
+    Args:
+        graph_file (str): Path to the pickle file containing the graph.
+    Returns:
+        networkx.DiGraph: Loaded directed acyclic graph.
     """
     with open(graph_file, 'rb') as f:
         graph = pickle.load(f)
@@ -17,6 +26,12 @@ def load_graph(graph_file):
 def get_x_data(data, snp_ids, samples):
     """
     Extract genotype data for specific SNPs and samples.
+    Args:
+        data (pd.DataFrame): Genotype data.
+        snp_ids (list): List of SNP identifiers.
+        samples (list): List of sample IDs.
+    Returns:
+        np.ndarray: Genotype values for the SNPs across samples.
     """
     x = data[data['rs_id'].isin(snp_ids)][samples].to_numpy(dtype='float64')
     return x.T
@@ -24,6 +39,14 @@ def get_x_data(data, snp_ids, samples):
 def calculate_z_score(alpha, rho, se, X, epsilon=1e-6):
     """
     Calculate Z-score for a gene based on genotype and GWAS data.
+    Args:
+        alpha (np.ndarray): Effect sizes for SNPs.
+        rho (np.ndarray): GWAS effect sizes (logOR).
+        se (np.ndarray): Standard errors for GWAS effect sizes.
+        X (np.ndarray): Genotype matrix for SNPs.
+        epsilon (float): Small value to avoid division by zero.
+    Returns:
+        float: Calculated Z-score for the gene.
     """
     X_standardized = StandardScaler().fit_transform(X)
     if X.shape[1] == 1:
@@ -39,6 +62,14 @@ def calculate_z_score(alpha, rho, se, X, epsilon=1e-6):
 def process_association(expression_file, genotype_file, graph_file, gwas_file, output_file):
     """
     Perform gene-disease association analysis for a single dataset.
+    Args:
+        expression_file (str): Path to gene expression file.
+        genotype_file (str): Path to genotype file.
+        graph_file (str): Path to DAG pickle file.
+        gwas_file (str): Path to GWAS summary statistics file.
+        output_file (str): Path to save association results.
+    Returns:
+        None
     """
     print("Starting gene-disease association analysis")
 
@@ -99,6 +130,10 @@ def process_association(expression_file, genotype_file, graph_file, gwas_file, o
     print(f"Results saved to {output_file}")
 
 if __name__ == "__main__":
+    """
+    Main entry point for gene-disease association analysis.
+    Parses command-line arguments and runs the association analysis pipeline.
+    """
     import argparse
 
     parser = argparse.ArgumentParser(description="Gene-disease association analysis.")
