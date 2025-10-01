@@ -45,6 +45,7 @@ def get_y_data(
     return y.flatten()
 
 def get_x_data(
+    # Extract genotype values for a list of SNPs and samples
     data: pd.DataFrame,
     snp_ids: List[str],
     samples: List[str]
@@ -75,14 +76,17 @@ def train_ridge(
     Returns:
         tuple: (cis_model, trans_model)
     """
+    # Train Ridge regression for cis component
     cis_model = RidgeCV(alphas=np.logspace(-3, 3, 10)).fit(X_cis, y)
     residuals = y - cis_model.predict(X_cis)
 
+    # Train Ridge regression for trans component if available
     if X_trans is not None:
         trans_model = RidgeCV(alphas=np.logspace(-3, 3, 10)).fit(X_trans, residuals)
     else:
         trans_model = None
 
+    # Return both models
     return cis_model, trans_model
 
 def optimize_weights(
@@ -103,13 +107,16 @@ def optimize_weights(
     Returns:
         np.ndarray: Optimized weights for cis and trans predictions.
     """
+    # Objective function for weight optimization
     def objective(weights):
         w_cis, w_trans = weights
         y_pred = w_cis * cis_model.predict(X_cis)
         if trans_model is not None:
             y_pred += w_trans * trans_model.predict(X_trans)
+        # Negative R^2 for minimization
         return -r2_score(y, y_pred)
 
+    # Initial guess and bounds for weights
     initial_weights = [0.5, 0.5]
     bounds = [(0, 1), (0, 1)]
     result = minimize(objective, initial_weights, bounds=bounds)
@@ -133,22 +140,24 @@ def process_dataset(
     """
     print(f"Processing dataset: {expression_file}, {genotype_file}")
 
-    # Load data
+    # Load expression, genotype, and graph data
     expression_data = pd.read_csv(expression_file)
     genotype_data = pd.read_csv(genotype_file)
     graph = load_graph(graph_file)
 
+    # Extract sample IDs and gene list
     samples = [col for col in expression_data.columns if col != 'id']
     genes = list(nx.topological_sort(graph))
 
+    # Store model results for each gene
     results = {}
     for gene in genes:
-        # Prepare data
+        # Prepare gene expression and cis genotype data
         y = get_y_data(expression_data, gene, samples)
         cis_snp_ids = list(graph.nodes[gene].get('cis_snps', []))
         X_cis = get_x_data(genotype_data, cis_snp_ids, samples)
 
-        # Prepare trans data if applicable
+        # Prepare trans genotype data if parents exist
         parents = list(graph.predecessors(gene))
         if parents:
             trans_snp_ids = [snp for parent in parents for snp in graph.nodes[parent].get('cis_snps', [])]
@@ -156,23 +165,23 @@ def process_dataset(
         else:
             X_trans = None
 
-        # Train models
+        # Train Ridge regression models for cis and trans components
         cis_model, trans_model = train_ridge(X_cis, X_trans, y)
 
-        # Optimize weights
+        # Optimize weights for combining cis and trans predictions
         if X_trans is not None:
             w_cis, w_trans = optimize_weights(y, X_cis, X_trans, cis_model, trans_model)
         else:
             w_cis, w_trans = 1.0, 0.0
 
-        # Store results
+        # Store trained models and weights for this gene
         results[gene] = {
             'cis_model': cis_model,
             'trans_model': trans_model,
             'weights': {'w_cis': w_cis, 'w_trans': w_trans},
         }
 
-    # Save results
+    # Save all model results to disk
     output_file = os.path.join(output_folder, "model_results.pkl")
     with open(output_file, 'wb') as f:
         pickle.dump(results, f)
@@ -197,7 +206,7 @@ if __name__ == "__main__":
     # Ensure output folder exists
     os.makedirs(args.output_folder, exist_ok=True)
 
-    # Process the dataset
+    # Run the model training pipeline
     process_dataset(
         expression_file=args.expression_file,
         genotype_file=args.genotype_file,

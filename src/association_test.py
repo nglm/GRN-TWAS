@@ -4,6 +4,7 @@ association_test.py
 Module for gene-disease association analysis using GRN structure and GWAS summary statistics.
 Contains functions for loading graphs, extracting genotype data, calculating Z-scores, and processing associations.
 """
+import argparse
 import pandas as pd
 import numpy as np
 import pickle
@@ -59,14 +60,18 @@ def calculate_z_score(
     Returns:
         float: Calculated Z-score for the gene.
     """
+    # Standardize genotype matrix for variance calculations
     X_standardized = StandardScaler().fit_transform(X)
     if X.shape[1] == 1:
+        # Single SNP case: variance calculation is simple
         gene_var = np.var(X_standardized, ddof=1) * alpha[0]**2
     else:
+        # Multiple SNPs: use covariance matrix and regularize with epsilon
         snp_cov = np.cov(X_standardized, rowvar=False) + np.eye(X.shape[1]) * epsilon
         gene_var = alpha.reshape(1, -1) @ snp_cov @ alpha.reshape(-1, 1)
         gene_var = gene_var[0, 0]
 
+    # Calculate ratio and final Z-score
     ratio = np.std(X_standardized, axis=0) / np.sqrt(gene_var + epsilon)
     return np.sum(alpha * ratio * rho / np.maximum(se, epsilon))
 
@@ -88,60 +93,73 @@ def process_association(
     Returns:
         None
     """
+    # Entry point for association analysis
     print("Starting gene-disease association analysis")
 
-    # Load data
+    # Load all required input data
     expression_data = pd.read_csv(expression_file)
     genotype_data = pd.read_csv(genotype_file)
     gwas_data = pd.read_csv(gwas_file, sep='\t')
     graph = load_graph(graph_file)
 
+    # Extract sample IDs and gene list from the data
     samples = [col for col in expression_data.columns if col != 'id']
     genes = list(graph.nodes)
 
+    # Store association results for each gene
     results = {}
     for gene in genes:
+        # Get cis SNPs for the gene
         cis_snp_ids = graph.nodes[gene].get('cis_snps', [])
         X_cis = get_x_data(genotype_data, cis_snp_ids, samples)
 
+        # Extract GWAS effect sizes and standard errors for cis SNPs
         rho_cis = gwas_data[gwas_data['snpid'].isin(cis_snp_ids)].set_index('snpid')['logOR'].to_dict()
         se_cis = gwas_data[gwas_data['snpid'].isin(cis_snp_ids)].set_index('snpid')['se_gc'].to_dict()
 
+        # If no GWAS info for cis SNPs, skip this gene
         if not rho_cis or not se_cis:
             results[gene] = {'z_score_cis': 0.0, 'z_score_trans': 0.0, 'z_score': 0.0}
             continue
 
-        alpha_cis = np.random.rand(len(cis_snp_ids))  # Placeholder for actual alpha values
+        # Placeholder: random effect sizes for cis SNPs
+        alpha_cis = np.random.rand(len(cis_snp_ids))
         rho_values_cis = np.array([rho_cis[snp] for snp in cis_snp_ids if snp in rho_cis])
         se_values_cis = np.array([se_cis[snp] for snp in cis_snp_ids if snp in se_cis])
 
+        # Calculate cis Z-score
         z_score_cis = calculate_z_score(alpha_cis, rho_values_cis, se_values_cis, X_cis)
 
-        # Handle trans effects
+        # Handle trans effects: get parent genes and their cis SNPs
         parents = list(graph.predecessors(gene))
         trans_snp_ids = [snp for parent in parents for snp in graph.nodes[parent].get('cis_snps', [])]
         if trans_snp_ids:
+            # Extract trans genotype and GWAS info
             X_trans = get_x_data(genotype_data, trans_snp_ids, samples)
             rho_trans = gwas_data[gwas_data['snpid'].isin(trans_snp_ids)].set_index('snpid')['logOR'].to_dict()
             se_trans = gwas_data[gwas_data['snpid'].isin(trans_snp_ids)].set_index('snpid')['se_gc'].to_dict()
 
-            alpha_trans = np.random.rand(len(trans_snp_ids))  # Placeholder for actual alpha values
+            # Placeholder: random effect sizes for trans SNPs
+            alpha_trans = np.random.rand(len(trans_snp_ids))
             rho_values_trans = np.array([rho_trans[snp] for snp in trans_snp_ids if snp in rho_trans])
             se_values_trans = np.array([se_trans[snp] for snp in trans_snp_ids if snp in se_trans])
 
+            # Calculate trans Z-score
             z_score_trans = calculate_z_score(alpha_trans, rho_values_trans, se_values_trans, X_trans)
         else:
             z_score_trans = 0.0
 
+        # Combine cis and trans Z-scores
         z_score = z_score_cis + z_score_trans
 
+        # Store results for this gene
         results[gene] = {
             'z_score_cis': float(z_score_cis),
             'z_score_trans': float(z_score_trans),
             'z_score': float(z_score)
         }
 
-    # Save results
+    # Save results to output file in JSON format
     with open(output_file, 'w') as f:
         json.dump(results, f, indent=4)
     print(f"Results saved to {output_file}")
@@ -151,8 +169,7 @@ if __name__ == "__main__":
     Main entry point for gene-disease association analysis.
     Parses command-line arguments and runs the association analysis pipeline.
     """
-    import argparse
-
+    # Parse command-line arguments for input/output files
     parser = argparse.ArgumentParser(description="Gene-disease association analysis.")
     parser.add_argument("--expression_file", type=str, required=True, help="Path to the gene expression file.")
     parser.add_argument("--genotype_file", type=str, required=True, help="Path to the genotype file.")
@@ -162,6 +179,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Run the association analysis pipeline
     process_association(
         expression_file=args.expression_file,
         genotype_file=args.genotype_file,

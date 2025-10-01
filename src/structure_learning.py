@@ -12,7 +12,6 @@ import networkx as nx
 import json
 from typing import Any, Dict, Optional
 
-# Function to calculate p-values using Findr
 def calculate_p_values(
     expression_A: np.ndarray,
     expression_ALL: np.ndarray,
@@ -31,19 +30,23 @@ def calculate_p_values(
     Returns:
         dict: Dictionary of posterior probabilities and intermediate results.
     """
+    # Calculate p0: null model posterior probabilities
     p0_results = method.pij_rank(dt=expression_A, dt2=expression_ALL, nodiag=True)
     p0 = p0_results['p'][:, :n] if n else p0_results['p']
 
+    # Calculate other posteriors using genotype and expression data
     p_other_results = method.pijs_gassist(dg=genotype, dt=expression_A, dt2=expression_ALL, nodiag=True)
     p2 = p_other_results['p2'][:, :n] if n else p_other_results['p2']
     p3 = p_other_results['p3'][:, :n] if n else p_other_results['p3']
     p4 = p_other_results['p4'][:, :n] if n else p_other_results['p4']
     p5 = p_other_results['p5'][:, :n] if n else p_other_results['p5']
 
+    # Combine posteriors for downstream analysis
     p2p3 = p2 * p3
     p2p5 = p2 * p5
     p = 0.5 * (p2p5 + p4)
 
+    # Return all relevant posterior probabilities
     return {
         'p0': p0,
         'p2': p2,
@@ -55,7 +58,6 @@ def calculate_p_values(
         'p': p,
     }
 
-# Function to reconstruct GRN
 def reconstruct_grn(
     input_file: str,
     output_folder: str,
@@ -74,41 +76,41 @@ def reconstruct_grn(
     """
     print(f"Reconstructing GRN for dataset: {input_file}")
 
-    # Load the dataset
+    # Load the input dataset (expression and genotype data)
     data = pd.read_csv(input_file, compression='gzip')
 
-    # Extract expression and genotype data
+    # Extract sample IDs and build expression/genotype matrices
     sample_ids = [col for col in data.columns if col != 'id']
     expression_A = data[sample_ids].to_numpy(dtype=np.float64)
     expression_ALL = expression_A  # For simplicity, use the same expression matrix
     genotype = data[sample_ids].to_numpy(dtype=np.float64)
 
-    # Initialize Findr
+    # Initialize Findr library for GRN inference
     findr_lib = findr.lib(path=findr_path, loglv=6, rs=0, nth=0)
 
-    # Calculate p-values
+    # Calculate p-values and posterior probabilities for network edges
     posteriors = calculate_p_values(expression_A, expression_ALL, genotype, findr_lib)
 
-    # Filter posterior probabilities based on the threshold
+    # Filter edges by posterior probability threshold
     filtered_posteriors = np.where(posteriors['p'] >= posterior_threshold, posteriors['p'], 0)
 
-    # Save the filtered results
+    # Save filtered posterior matrix to disk
     output_file = os.path.join(output_folder, "grn_posteriors.csv.gz")
     pd.DataFrame(filtered_posteriors, columns=sample_ids).to_csv(output_file, compression='gzip', index=False)
     print(f"Filtered posteriors saved to {output_file}")
 
-    # Create adjacency matrix
+    # Build adjacency matrix for NetworkX graph construction
     adjacency_matrix = pd.DataFrame(filtered_posteriors, columns=sample_ids, index=sample_ids)
 
-    # Create graph using NetworkX
+    # Create directed graph from adjacency matrix
     graph = nx.from_pandas_adjacency(adjacency_matrix, create_using=nx.DiGraph)
 
-    # Save the graph
+    # Save graph object to disk
     graph_file = os.path.join(output_folder, "grn_graph.gpickle")
     nx.write_gpickle(graph, graph_file)
     print(f"Graph saved to {graph_file}")
 
-    # Save graph information
+    # Save graph summary statistics (nodes/edges)
     graph_info = {
         "total_nodes": graph.number_of_nodes(),
         "total_edges": graph.number_of_edges(),
@@ -125,7 +127,7 @@ if __name__ == "__main__":
     """
     import argparse
 
-    # Command-line arguments
+    # Parse command-line arguments for input/output files
     parser = argparse.ArgumentParser(description="Step 1: Reconstruct GRNs using Findr.")
     parser.add_argument("--input_file", type=str, required=True, help="Path to the input dataset.")
     parser.add_argument("--output_folder", type=str, required=True, help="Folder to save GRN reconstruction results.")
@@ -134,7 +136,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Run network reconstruction
+    # Run the GRN reconstruction pipeline
     reconstruct_grn(
         input_file=args.input_file,
         output_folder=args.output_folder,

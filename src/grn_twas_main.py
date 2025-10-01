@@ -26,6 +26,7 @@ def run_structure_learning(
     structure_output = os.path.join(output_folder, "structure")
     os.makedirs(structure_output, exist_ok=True)
     graph_file = os.path.join(structure_output, "graph.pkl")
+    # Run structure learning script as a subprocess
     run([
         "python", "structure_learning.py",
         "--expression_file", expression_file,
@@ -54,6 +55,7 @@ def run_model_training(
     training_output = os.path.join(output_folder, "model_training")
     os.makedirs(training_output, exist_ok=True)
     trained_model_file = os.path.join(training_output, "trained_model.pkl")
+    # Run model training script as a subprocess
     run([
         "python", "model_training.py",
         "--expression_file", expression_file,
@@ -85,6 +87,7 @@ def run_association_test(
     association_output = os.path.join(output_folder, "association")
     os.makedirs(association_output, exist_ok=True)
     association_file = os.path.join(association_output, "association_results.json")
+    # Run association test script as a subprocess
     run([
         "python", "association_test.py",
         "--expression_file", expression_file,
@@ -100,6 +103,7 @@ def main() -> None:
     Main entry point for the GRN-based TWAS pipeline.
     Parses command-line arguments and runs all pipeline steps.
     """
+    # Parse command-line arguments for pipeline inputs/outputs
     parser = argparse.ArgumentParser(description="Run the integrated pipeline for GRN-based TWAS.")
     parser.add_argument("--expression_file", type=str, required=True, help="Path to the gene expression file.")
     parser.add_argument("--genotype_file", type=str, required=True, help="Path to the genotype file.")
@@ -108,17 +112,17 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Create the output folder if it does not exist
+    # Ensure output folder exists
     os.makedirs(args.output_folder, exist_ok=True)
 
-    # Step 1: Structure Learning
+    # Step 1: Run structure learning and get graph file
     graph_file = run_structure_learning(
         expression_file=args.expression_file,
         genotype_file=args.genotype_file,
         output_folder=args.output_folder
     )
 
-    # Step 2: Model Training
+    # Step 2: Run model training using the learned graph
     run_model_training(
         expression_file=args.expression_file,
         genotype_file=args.genotype_file,
@@ -126,7 +130,7 @@ def main() -> None:
         output_folder=args.output_folder
     )
 
-    # Step 3: Association Testing
+    # Step 3: Run association testing using trained model and graph
     association_file = run_association_test(
         expression_file=args.expression_file,
         genotype_file=args.genotype_file,
