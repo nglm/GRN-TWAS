@@ -1,18 +1,19 @@
-### Gene Regulatory Network-Driven Transcriptome-Wide Association Studies (GRN-TWAS)
+# Gene Regulatory Network-Driven Transcriptome-Wide Association Studies (GRN-TWAS)
 
-This repository contains the implementation of a novel framework that integrates **tissue-specific gene regulatory networks (GRNs)** into **transcriptome-wide association studies (TWAS)** for studying gene-complex disease associations.
+This repository is a fork from [guutama/GRN-TWAS](https://github.com/guutama/GRN-TWAS) which implements a novel framework that integrates **tissue-specific gene regulatory networks (GRNs)** into **transcriptome-wide association studies (TWAS)** for studying gene-complex disease associations.
 
-### Key Features
+## Key Features
 
-- Utilizes **Findr** for GRN reconstruction from genotype and transcriptome data.
+- Utilizes [**Findr**](https://github.com/lingfeiwang/findr) for GRN reconstruction from genotype and transcriptome data.
 - Predicts gene expression by incorporating both **cis** and **trans** regulatory components.
 - Evaluates gene-disease associations using **GWAS summary statistics**.
 
-### Data Sources
+## Data Sources
 
 This project uses three main data sources:
 
 ---
+
 1. **Reference dataset of genotype and gene expression**
    Individual-level genotype data and RNA sequencing-based gene expression profiles for the same individuals.
 
