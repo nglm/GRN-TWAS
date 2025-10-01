@@ -8,7 +8,11 @@ import os
 import argparse
 from subprocess import run
 
-def run_structure_learning(expression_file, genotype_file, output_folder):
+def run_structure_learning(
+    expression_file: str,
+    genotype_file: str,
+    output_folder: str
+) -> str:
     """
     Run the structure learning step of the pipeline.
     Args:
@@ -30,7 +34,12 @@ def run_structure_learning(expression_file, genotype_file, output_folder):
     ], check=True)
     return graph_file
 
-def run_model_training(expression_file, genotype_file, graph_file, output_folder):
+def run_model_training(
+    expression_file: str,
+    genotype_file: str,
+    graph_file: str,
+    output_folder: str
+) -> str:
     """
     Run the model training step of the pipeline.
     Args:
@@ -54,7 +63,13 @@ def run_model_training(expression_file, genotype_file, graph_file, output_folder
     ], check=True)
     return trained_model_file
 
-def run_association_test(expression_file, genotype_file, graph_file, gwas_file, output_folder):
+def run_association_test(
+    expression_file: str,
+    genotype_file: str,
+    graph_file: str,
+    gwas_file: str,
+    output_folder: str
+) -> str:
     """
     Run the association testing step of the pipeline.
     Args:
@@ -80,7 +95,7 @@ def run_association_test(expression_file, genotype_file, graph_file, gwas_file, 
     ], check=True)
     return association_file
 
-def main():
+def main() -> None:
     """
     Main entry point for the GRN-based TWAS pipeline.
     Parses command-line arguments and runs all pipeline steps.

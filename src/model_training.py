@@ -12,8 +12,9 @@ from sklearn.linear_model import RidgeCV
 from sklearn.metrics import r2_score
 from scipy.optimize import minimize
 import networkx as nx
+from typing import Any, Dict, List, Optional, Tuple
 
-def load_graph(graph_file):
+def load_graph(graph_file: str) -> nx.DiGraph:
     """
     Load a directed acyclic graph (DAG) from a pickle file.
     Args:
@@ -26,7 +27,11 @@ def load_graph(graph_file):
     print(f"Loaded graph from {graph_file}")
     return graph
 
-def get_y_data(data, gene_id, samples):
+def get_y_data(
+    data: pd.DataFrame,
+    gene_id: str,
+    samples: List[str]
+) -> np.ndarray:
     """
     Extract gene expression data for a specific gene and samples.
     Args:
@@ -39,7 +44,11 @@ def get_y_data(data, gene_id, samples):
     y = data[data['id'] == gene_id][samples].to_numpy(dtype='float64')
     return y.flatten()
 
-def get_x_data(data, snp_ids, samples):
+def get_x_data(
+    data: pd.DataFrame,
+    snp_ids: List[str],
+    samples: List[str]
+) -> np.ndarray:
     """
     Extract genotype data for specific SNPs and samples.
     Args:
@@ -52,7 +61,11 @@ def get_x_data(data, snp_ids, samples):
     x = data[data['rs_id'].isin(snp_ids)][samples].to_numpy(dtype='float64')
     return x.T
 
-def train_ridge(X_cis, X_trans, y):
+def train_ridge(
+    X_cis: np.ndarray,
+    X_trans: Optional[np.ndarray],
+    y: np.ndarray
+) -> Tuple[RidgeCV, Optional[RidgeCV]]:
     """
     Train Ridge regression models for cis and trans components.
     Args:
@@ -72,7 +85,13 @@ def train_ridge(X_cis, X_trans, y):
 
     return cis_model, trans_model
 
-def optimize_weights(y, X_cis, X_trans, cis_model, trans_model):
+def optimize_weights(
+    y: np.ndarray,
+    X_cis: np.ndarray,
+    X_trans: Optional[np.ndarray],
+    cis_model: RidgeCV,
+    trans_model: Optional[RidgeCV]
+) -> np.ndarray:
     """
     Optimize weights for combining cis and trans predictions.
     Args:
@@ -96,7 +115,12 @@ def optimize_weights(y, X_cis, X_trans, cis_model, trans_model):
     result = minimize(objective, initial_weights, bounds=bounds)
     return result.x
 
-def process_dataset(expression_file, genotype_file, graph_file, output_folder):
+def process_dataset(
+    expression_file: str,
+    genotype_file: str,
+    graph_file: str,
+    output_folder: str
+) -> None:
     """
     Process a single dataset to train Ridge regression models for gene expression prediction.
     Args:

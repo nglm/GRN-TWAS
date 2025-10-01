@@ -10,9 +10,16 @@ import numpy as np
 import findr
 import networkx as nx
 import json
+from typing import Any, Dict, Optional
 
 # Function to calculate p-values using Findr
-def calculate_p_values(expression_A, expression_ALL, genotype, method, n=None):
+def calculate_p_values(
+    expression_A: np.ndarray,
+    expression_ALL: np.ndarray,
+    genotype: np.ndarray,
+    method: Any,
+    n: Optional[int] = None
+) -> Dict[str, np.ndarray]:
     """
     Calculate posterior probabilities using Findr for given expression and genotype data.
     Args:
@@ -49,7 +56,12 @@ def calculate_p_values(expression_A, expression_ALL, genotype, method, n=None):
     }
 
 # Function to reconstruct GRN
-def reconstruct_grn(input_file, output_folder, findr_path, posterior_threshold=0.75):
+def reconstruct_grn(
+    input_file: str,
+    output_folder: str,
+    findr_path: str,
+    posterior_threshold: float = 0.75
+) -> None:
     """
     Reconstruct a gene regulatory network (GRN) for a single tissue dataset using Findr.
     Args:

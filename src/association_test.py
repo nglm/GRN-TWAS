@@ -9,8 +9,9 @@ import numpy as np
 import pickle
 from sklearn.preprocessing import StandardScaler
 import json
+from typing import Any, Dict, List, Optional
 
-def load_graph(graph_file):
+def load_graph(graph_file: str) -> Any:
     """
     Load a directed acyclic graph (DAG) from a pickle file.
     Args:
@@ -23,7 +24,11 @@ def load_graph(graph_file):
     print(f"Loaded graph from {graph_file}")
     return graph
 
-def get_x_data(data, snp_ids, samples):
+def get_x_data(
+    data: pd.DataFrame,
+    snp_ids: List[str],
+    samples: List[str]
+) -> np.ndarray:
     """
     Extract genotype data for specific SNPs and samples.
     Args:
@@ -36,7 +41,13 @@ def get_x_data(data, snp_ids, samples):
     x = data[data['rs_id'].isin(snp_ids)][samples].to_numpy(dtype='float64')
     return x.T
 
-def calculate_z_score(alpha, rho, se, X, epsilon=1e-6):
+def calculate_z_score(
+    alpha: np.ndarray,
+    rho: np.ndarray,
+    se: np.ndarray,
+    X: np.ndarray,
+    epsilon: float = 1e-6
+) -> float:
     """
     Calculate Z-score for a gene based on genotype and GWAS data.
     Args:
@@ -59,7 +70,13 @@ def calculate_z_score(alpha, rho, se, X, epsilon=1e-6):
     ratio = np.std(X_standardized, axis=0) / np.sqrt(gene_var + epsilon)
     return np.sum(alpha * ratio * rho / np.maximum(se, epsilon))
 
-def process_association(expression_file, genotype_file, graph_file, gwas_file, output_file):
+def process_association(
+    expression_file: str,
+    genotype_file: str,
+    graph_file: str,
+    gwas_file: str,
+    output_file: str
+) -> None:
     """
     Perform gene-disease association analysis for a single dataset.
     Args:
