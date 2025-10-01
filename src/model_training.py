@@ -4,6 +4,7 @@ model_training.py
 Module for training Ridge regression models for gene expression prediction using GRN structure.
 Contains functions for loading graphs, extracting data, training models, and optimizing weights.
 """
+import argparse
 import os
 import pandas as pd
 import numpy as np
@@ -192,7 +193,6 @@ if __name__ == "__main__":
     Main entry point for model training.
     Parses command-line arguments and runs the model training pipeline.
     """
-    import argparse
 
     # Command-line arguments
     parser = argparse.ArgumentParser(description="Train Ridge regression models for gene expression prediction.")

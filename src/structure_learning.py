@@ -1,10 +1,11 @@
-import os
 """
 structure_learning.py
 ---------------------
 Module for reconstructing gene regulatory networks (GRNs) using Findr.
 Contains functions for calculating posterior probabilities and building GRNs from expression and genotype data.
 """
+import argparse
+import os
 import pandas as pd
 import numpy as np
 import findr
@@ -125,7 +126,6 @@ if __name__ == "__main__":
     Main entry point for GRN reconstruction using Findr.
     Parses command-line arguments and runs the reconstruction pipeline.
     """
-    import argparse
 
     # Parse command-line arguments for input/output files
     parser = argparse.ArgumentParser(description="Step 1: Reconstruct GRNs using Findr.")
