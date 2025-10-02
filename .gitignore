@@ -1,0 +1,16 @@
+*__pycache__
+*_cache
+*.vscode
+*.pdf
+grn
+# no backup files
+*~*
+# no ipynb checkpoints
+*.ipynb_checkpoints*
+# no generated html files
+*docs/_build/*
+# no tmp files
+tmp/*
+# no notes files
+notes/*
+README.pdf
