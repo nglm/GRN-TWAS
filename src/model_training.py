@@ -19,6 +19,12 @@ from typing import Any, Dict, List, Optional, Tuple
 def load_graph(graph_file: str) -> nx.DiGraph:
     """
     Load a directed acyclic graph (DAG) from a pickle file.
+
+    The graph to load should be a NetworkX DiGraph where each node represents a
+    gene, and edges represent regulatory relationships. Each node should have
+    an attribute 'cis_snps' which is a list of SNP identifiers associated with
+    that gene.
+
     Args:
         graph_file (str): Path to the pickle file containing the graph.
     Returns:
@@ -49,12 +55,14 @@ def get_y_data(
 ) -> np.ndarray:
     """
     Extract gene expression data for a specific gene and samples.
+
     Args:
-        data (pd.DataFrame): Expression data.
+        data (pd.DataFrame): Expression data. Must contain a column 'id' for gene IDs.
         gene_id (str): Gene identifier.
         samples (list): List of sample IDs.
     Returns:
-        np.ndarray: Expression values for the gene across samples.
+        np.ndarray: shape (n_samples,) Expression values for the gene across
+        samples.
     Raises:
         ValueError: If gene not found or data extraction fails.
     """
@@ -89,7 +97,8 @@ def get_x_data(
     """
     Extract genotype data for specific SNPs and samples.
     Args:
-        data (pd.DataFrame): Genotype data.
+        data (pd.DataFrame): Genotype data. Must contain a column 'rs_id' for
+        SNP IDs.
         snp_ids (list): List of SNP identifiers.
         samples (list): List of sample IDs.
     Returns:
@@ -137,11 +146,11 @@ def train_ridge(
     """
     Train Ridge regression models for cis and trans components.
     Args:
-        X_cis (np.ndarray): Cis genotype matrix.
-        X_trans (np.ndarray or None): Trans genotype matrix.
+        X_cis (np.ndarray): Cis genotype matrix. Shape (n_samples, n_cis_snps).
+        X_trans (np.ndarray or None): Trans genotype matrix. Shape (n_samples, n_trans_snps).
         y (np.ndarray): Gene expression vector.
     Returns:
-        tuple: (cis_model, trans_model)
+        tuple: (cis_model, trans_model). cis_model is a RidgeCV instance trained on cis data fitted to y. trans_model is None if X_trans is not provided and otherwise a RidgeCV instance trained on trans data fitted to the residuals, that is y - cis_model.predict(X_cis).
     Raises:
         ValueError: If input arrays have invalid shapes or data.
         RuntimeError: If model training fails.
@@ -196,10 +205,24 @@ def optimize_weights(
     """
     # Validate inputs
     if trans_model is None or X_trans is None:
+        # If no trans model is available, use only cis predictions
         return np.array([1.0, 0.0])
 
     # Objective function for weight optimization
     def objective(weights):
+        """
+        Compute negative R^2 score for given weights.
+
+        First computes the weighted predictions from cis and trans models.
+        Then computes the (negative) R^2 score against true expression values y.
+
+        The whole formula to compute the prediction is:
+        y_pred = w_cis * cis_model.predict(X_cis)
+        + w_trans * trans_model.predict(X_trans)
+
+        Args:
+            weights (list): Weights for cis and trans predictions.
+        """
         try:
             w_cis, w_trans = weights
             y_pred = w_cis * cis_model.predict(X_cis)
@@ -215,6 +238,7 @@ def optimize_weights(
     bounds = [(0, 1), (0, 1)]
 
     try:
+        # Use scipy minimize to find optimal weights
         result = minimize(objective, initial_weights, bounds=bounds)
         if result.success:
             return result.x
@@ -233,6 +257,23 @@ def process_dataset(
 ) -> None:
     """
     Process a single dataset to train Ridge regression models for gene expression prediction.
+
+    The genotype file must be a CSV-like file with a column 'rs_id' for SNP
+    identifiers and additional columns for each sample containing genotype
+    values (0, 1, 2). The genotype file may contain additional columns such as
+    'chromosome', 'position', 'ref', 'alt' which will be ignored.
+
+    The expression file must be a CSV-like file with a column 'id' for gene
+    identifiers and additional columns for each sample containing expression
+    values (floats).
+
+    The genotype and expression files must have matching sample columns (same
+    names).
+
+    The graph file must be a pickle file containing a NetworkX DiGraph where
+    each node represents a gene and has an attribute 'cis_snps' which is a list
+    of SNP identifiers associated with that gene.
+
     Args:
         expression_file (str): Path to gene expression file.
         genotype_file (str): Path to genotype file.
@@ -247,7 +288,7 @@ def process_dataset(
     """
     print(f"Processing dataset: {expression_file}, {genotype_file}")
 
-    # Validate input files
+    # ------------ Validate input files ------------
     if not os.path.isfile(expression_file):
         raise FileNotFoundError(f"Expression file not found: {expression_file}")
     if not os.path.isfile(genotype_file):
@@ -255,7 +296,7 @@ def process_dataset(
     if not os.path.isfile(graph_file):
         raise FileNotFoundError(f"Graph file not found: {graph_file}")
 
-    # Load expression, genotype, and graph data
+    # ------------ Load expression data -----------
     try:
         expression_data = pd.read_csv(expression_file)
         if expression_data.empty:
@@ -265,6 +306,7 @@ def process_dataset(
     except Exception as e:
         raise RuntimeError(f"Failed to load expression data: {e}")
 
+    # ------------ Load genotype data ------------
     try:
         genotype_data = pd.read_csv(genotype_file)
         if genotype_data.empty:
@@ -274,6 +316,7 @@ def process_dataset(
     except Exception as e:
         raise RuntimeError(f"Failed to load genotype data: {e}")
 
+    # ------------ Load graph data ------------
     try:
         graph = load_graph(graph_file)
         if graph.number_of_nodes() == 0:
