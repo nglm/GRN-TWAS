@@ -13,6 +13,7 @@ from sklearn.linear_model import RidgeCV
 from sklearn.metrics import r2_score
 from scipy.optimize import minimize
 import networkx as nx
+import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 def load_graph(graph_file: str) -> nx.DiGraph:
@@ -22,10 +23,23 @@ def load_graph(graph_file: str) -> nx.DiGraph:
         graph_file (str): Path to the pickle file containing the graph.
     Returns:
         networkx.DiGraph: Loaded directed acyclic graph.
+    Raises:
+        FileNotFoundError: If graph file doesn't exist.
+        RuntimeError: If graph loading fails.
     """
-    with open(graph_file, 'rb') as f:
-        graph = pickle.load(f)
-    print(f"Loaded graph from {graph_file}")
+    if not os.path.isfile(graph_file):
+        raise FileNotFoundError(f"Graph file not found: {graph_file}")
+
+    try:
+        with open(graph_file, 'rb') as f:
+            graph = pickle.load(f)
+    except Exception as e:
+        raise RuntimeError(f"Failed to load graph from {graph_file}: {e}")
+
+    if not isinstance(graph, nx.DiGraph):
+        raise RuntimeError(f"Loaded object is not a NetworkX DiGraph: {type(graph)}")
+
+    print(f"Loaded graph from {graph_file} with {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges")
     return graph
 
 def get_y_data(
@@ -41,12 +55,33 @@ def get_y_data(
         samples (list): List of sample IDs.
     Returns:
         np.ndarray: Expression values for the gene across samples.
+    Raises:
+        ValueError: If gene not found or data extraction fails.
     """
-    y = data[data['id'] == gene_id][samples].to_numpy(dtype='float64')
-    return y.flatten()
+    if gene_id not in data['id'].values:
+        raise ValueError(f"Gene ID '{gene_id}' not found in expression data")
+
+    gene_data = data[data['id'] == gene_id]
+    if gene_data.empty:
+        raise ValueError(f"No data found for gene ID '{gene_id}'")
+
+    # Check if all sample columns exist
+    missing_samples = [s for s in samples if s not in data.columns]
+    if missing_samples:
+        raise ValueError(f"Missing sample columns in expression data: {missing_samples}")
+
+    try:
+        y = gene_data[samples].to_numpy(dtype='float64')
+        y = y.flatten()
+    except Exception as e:
+        raise ValueError(f"Failed to extract expression data for gene '{gene_id}': {e}")
+
+    if len(y) == 0:
+        raise ValueError(f"No expression values found for gene '{gene_id}'")
+
+    return y
 
 def get_x_data(
-    # Extract genotype values for a list of SNPs and samples
     data: pd.DataFrame,
     snp_ids: List[str],
     samples: List[str]
@@ -59,9 +94,40 @@ def get_x_data(
         samples (list): List of sample IDs.
     Returns:
         np.ndarray: Genotype values for the SNPs across samples.
+    Raises:
+        ValueError: If SNPs not found or data extraction fails.
     """
-    x = data[data['rs_id'].isin(snp_ids)][samples].to_numpy(dtype='float64')
-    return x.T
+    if not snp_ids:
+        raise ValueError("No SNP IDs provided")
+
+    # Check if required columns exist
+    if 'rs_id' not in data.columns:
+        raise ValueError("Genotype data must contain 'rs_id' column")
+
+    missing_samples = [s for s in samples if s not in data.columns]
+    if missing_samples:
+        raise ValueError(f"Missing sample columns in genotype data: {missing_samples}")
+
+    # Find which SNPs are actually in the data
+    available_snps = data[data['rs_id'].isin(snp_ids)]
+    if available_snps.empty:
+        raise ValueError(f"None of the requested SNPs found in genotype data: {snp_ids}")
+
+    found_snps = available_snps['rs_id'].tolist()
+    missing_snps = [s for s in snp_ids if s not in found_snps]
+    if missing_snps:
+        print(f"WARNING: {len(missing_snps)} SNPs not found in genotype data: {missing_snps[:5]}{'...' if len(missing_snps) > 5 else ''}")
+
+    try:
+        x = available_snps[samples].to_numpy(dtype='float64')
+        x = x.T  # Transpose to have samples as rows, SNPs as columns
+    except Exception as e:
+        raise ValueError(f"Failed to extract genotype data: {e}")
+
+    if x.size == 0:
+        raise ValueError("No genotype data extracted")
+
+    return x
 
 def train_ridge(
     X_cis: np.ndarray,
@@ -76,16 +142,36 @@ def train_ridge(
         y (np.ndarray): Gene expression vector.
     Returns:
         tuple: (cis_model, trans_model)
+    Raises:
+        ValueError: If input arrays have invalid shapes or data.
+        RuntimeError: If model training fails.
     """
-    # Train Ridge regression for cis component
-    cis_model = RidgeCV(alphas=np.logspace(-3, 3, 10)).fit(X_cis, y)
-    residuals = y - cis_model.predict(X_cis)
+    # Validate inputs
+    if X_cis.size == 0:
+        raise ValueError("Cis genotype matrix is empty")
+    if y.size == 0:
+        raise ValueError("Expression vector is empty")
+    if X_cis.shape[0] != y.shape[0]:
+        raise ValueError(f"Sample dimension mismatch: X_cis has {X_cis.shape[0]} samples, y has {y.shape[0]} samples")
+
+    if X_trans is not None and X_trans.shape[0] != y.shape[0]:
+        raise ValueError(f"Sample dimension mismatch: X_trans has {X_trans.shape[0]} samples, y has {y.shape[0]} samples")
+
+    try:
+        # Train Ridge regression for cis component
+        cis_model = RidgeCV(alphas=np.logspace(-3, 3, 10)).fit(X_cis, y)
+        residuals = y - cis_model.predict(X_cis)
+    except Exception as e:
+        raise RuntimeError(f"Failed to train cis Ridge model: {e}")
 
     # Train Ridge regression for trans component if available
+    trans_model = None
     if X_trans is not None:
-        trans_model = RidgeCV(alphas=np.logspace(-3, 3, 10)).fit(X_trans, residuals)
-    else:
-        trans_model = None
+        try:
+            trans_model = RidgeCV(alphas=np.logspace(-3, 3, 10)).fit(X_trans, residuals)
+        except Exception as e:
+            print(f"WARNING: Failed to train trans Ridge model: {e}")
+            trans_model = None
 
     # Return both models
     return cis_model, trans_model
@@ -108,20 +194,36 @@ def optimize_weights(
     Returns:
         np.ndarray: Optimized weights for cis and trans predictions.
     """
+    # Validate inputs
+    if trans_model is None or X_trans is None:
+        return np.array([1.0, 0.0])
+
     # Objective function for weight optimization
     def objective(weights):
-        w_cis, w_trans = weights
-        y_pred = w_cis * cis_model.predict(X_cis)
-        if trans_model is not None:
-            y_pred += w_trans * trans_model.predict(X_trans)
-        # Negative R^2 for minimization
-        return -r2_score(y, y_pred)
+        try:
+            w_cis, w_trans = weights
+            y_pred = w_cis * cis_model.predict(X_cis)
+            if trans_model is not None:
+                y_pred += w_trans * trans_model.predict(X_trans)
+            # Negative R^2 for minimization
+            return -r2_score(y, y_pred)
+        except Exception:
+            return float('inf')  # Return large value if prediction fails
 
     # Initial guess and bounds for weights
     initial_weights = [0.5, 0.5]
     bounds = [(0, 1), (0, 1)]
-    result = minimize(objective, initial_weights, bounds=bounds)
-    return result.x
+
+    try:
+        result = minimize(objective, initial_weights, bounds=bounds)
+        if result.success:
+            return result.x
+        else:
+            print("WARNING: Weight optimization failed, using default weights")
+            return np.array([0.5, 0.5])
+    except Exception as e:
+        print(f"WARNING: Weight optimization error: {e}, using default weights")
+        return np.array([0.5, 0.5])
 
 def process_dataset(
     expression_file: str,
@@ -138,55 +240,142 @@ def process_dataset(
         output_folder (str): Directory to save results.
     Returns:
         None
+    Raises:
+        FileNotFoundError: If input files don't exist.
+        ValueError: If data format is invalid.
+        RuntimeError: If model training fails.
     """
     print(f"Processing dataset: {expression_file}, {genotype_file}")
 
-    # Load expression, genotype, and graph data
-    expression_data = pd.read_csv(expression_file)
-    genotype_data = pd.read_csv(genotype_file)
-    graph = load_graph(graph_file)
+    # Validate input files
+    if not os.path.isfile(expression_file):
+        raise FileNotFoundError(f"Expression file not found: {expression_file}")
+    if not os.path.isfile(genotype_file):
+        raise FileNotFoundError(f"Genotype file not found: {genotype_file}")
+    if not os.path.isfile(graph_file):
+        raise FileNotFoundError(f"Graph file not found: {graph_file}")
 
-    # Extract sample IDs and gene list
-    samples = [col for col in expression_data.columns if col != 'id']
-    genes = list(nx.topological_sort(graph))
+    # Load expression, genotype, and graph data
+    try:
+        expression_data = pd.read_csv(expression_file)
+        if expression_data.empty:
+            raise ValueError("Expression data file is empty")
+        if 'id' not in expression_data.columns:
+            raise ValueError("Expression data must contain 'id' column")
+    except Exception as e:
+        raise RuntimeError(f"Failed to load expression data: {e}")
+
+    try:
+        genotype_data = pd.read_csv(genotype_file)
+        if genotype_data.empty:
+            raise ValueError("Genotype data file is empty")
+        if 'rs_id' not in genotype_data.columns:
+            raise ValueError("Genotype data must contain 'rs_id' column")
+    except Exception as e:
+        raise RuntimeError(f"Failed to load genotype data: {e}")
+
+    try:
+        graph = load_graph(graph_file)
+        if graph.number_of_nodes() == 0:
+            raise ValueError("Graph has no nodes")
+    except Exception as e:
+        raise RuntimeError(f"Failed to load graph: {e}")
+
+    # Extract sample IDs and validate consistency
+    exp_samples = [col for col in expression_data.columns if col != 'id']
+    gen_samples = [col for col in genotype_data.columns if col not in ['rs_id', 'chromosome', 'position', 'ref', 'alt']]
+
+    if not exp_samples:
+        raise ValueError("No sample columns found in expression data")
+    if not gen_samples:
+        raise ValueError("No sample columns found in genotype data")
+
+    # Use intersection of samples (warn if mismatch)
+    samples = list(set(exp_samples) & set(gen_samples))
+    if not samples:
+        raise ValueError("No common samples found between expression and genotype data")
+
+    if len(samples) < len(exp_samples) or len(samples) < len(gen_samples):
+        print(f"WARNING: Using {len(samples)} common samples out of {len(exp_samples)} expression and {len(gen_samples)} genotype samples")
+
+    # Get gene list from graph
+    try:
+        genes = list(nx.topological_sort(graph))
+        if not genes:
+            raise ValueError("No genes found in graph")
+    except nx.NetworkXError as e:
+        raise ValueError(f"Graph is not a valid DAG: {e}")
+
+    print(f"Training models for {len(genes)} genes with {len(samples)} samples")
+
+    # Create output directory
+    try:
+        os.makedirs(output_folder, exist_ok=True)
+    except PermissionError:
+        raise PermissionError(f"Cannot create output directory: {output_folder}")
 
     # Store model results for each gene
     results = {}
+    successful_genes = 0
+    failed_genes = 0
+
     for gene in genes:
-        # Prepare gene expression and cis genotype data
-        y = get_y_data(expression_data, gene, samples)
-        cis_snp_ids = list(graph.nodes[gene].get('cis_snps', []))
-        X_cis = get_x_data(genotype_data, cis_snp_ids, samples)
+        try:
+            # Prepare gene expression data
+            y = get_y_data(expression_data, gene, samples)
 
-        # Prepare trans genotype data if parents exist
-        parents = list(graph.predecessors(gene))
-        if parents:
-            trans_snp_ids = [snp for parent in parents for snp in graph.nodes[parent].get('cis_snps', [])]
-            X_trans = get_x_data(genotype_data, trans_snp_ids, samples)
-        else:
+            # Get cis SNPs for this gene
+            cis_snp_ids = list(graph.nodes[gene].get('cis_snps', []))
+            if not cis_snp_ids:
+                print(f"WARNING: No cis SNPs found for gene {gene}, skipping")
+                failed_genes += 1
+                continue
+
+            X_cis = get_x_data(genotype_data, cis_snp_ids, samples)
+
+            # Prepare trans genotype data if parents exist
+            parents = list(graph.predecessors(gene))
             X_trans = None
+            if parents:
+                trans_snp_ids = [snp for parent in parents for snp in graph.nodes[parent].get('cis_snps', [])]
+                if trans_snp_ids:
+                    X_trans = get_x_data(genotype_data, trans_snp_ids, samples)
 
-        # Train Ridge regression models for cis and trans components
-        cis_model, trans_model = train_ridge(X_cis, X_trans, y)
+            # Train Ridge regression models for cis and trans components
+            cis_model, trans_model = train_ridge(X_cis, X_trans, y)
 
-        # Optimize weights for combining cis and trans predictions
-        if X_trans is not None:
-            w_cis, w_trans = optimize_weights(y, X_cis, X_trans, cis_model, trans_model)
-        else:
-            w_cis, w_trans = 1.0, 0.0
+            # Optimize weights for combining cis and trans predictions
+            if X_trans is not None and trans_model is not None:
+                w_cis, w_trans = optimize_weights(y, X_cis, X_trans, cis_model, trans_model)
+            else:
+                w_cis, w_trans = 1.0, 0.0
 
-        # Store trained models and weights for this gene
-        results[gene] = {
-            'cis_model': cis_model,
-            'trans_model': trans_model,
-            'weights': {'w_cis': w_cis, 'w_trans': w_trans},
-        }
+            # Store trained models and weights for this gene
+            results[gene] = {
+                'cis_model': cis_model,
+                'trans_model': trans_model,
+                'weights': {'w_cis': w_cis, 'w_trans': w_trans},
+            }
+            successful_genes += 1
+
+        except Exception as e:
+            print(f"WARNING: Failed to train model for gene {gene}: {e}")
+            failed_genes += 1
+            continue
+
+    if not results:
+        raise RuntimeError("No models were successfully trained")
+
+    print(f"Successfully trained models for {successful_genes} genes, failed for {failed_genes} genes")
 
     # Save all model results to disk
-    output_file = os.path.join(output_folder, "model_results.pkl")
-    with open(output_file, 'wb') as f:
-        pickle.dump(results, f)
-    print(f"Results saved to {output_file}")
+    try:
+        output_file = os.path.join(output_folder, "model_results.pkl")
+        with open(output_file, 'wb') as f:
+            pickle.dump(results, f)
+        print(f"Results saved to {output_file}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to save model results: {e}")
 
 if __name__ == "__main__":
     """
@@ -199,17 +388,36 @@ if __name__ == "__main__":
     parser.add_argument("--expression_file", type=str, required=True, help="Path to the gene expression file.")
     parser.add_argument("--genotype_file", type=str, required=True, help="Path to the genotype file.")
     parser.add_argument("--graph_file", type=str, required=True, help="Path to the DAG pickle file.")
-    parser.add_argument("--output_folder", type=str, required=True, help="Folder to save the results.")
+    parser.add_argument("--output_folder", type=str, required=True, help="Path to save the results.")
 
     args = parser.parse_args()
 
-    # Ensure output folder exists
-    os.makedirs(args.output_folder, exist_ok=True)
+    try:
+        # Ensure output folder exists
+        os.makedirs(args.output_folder, exist_ok=True)
 
-    # Run the model training pipeline
-    process_dataset(
-        expression_file=args.expression_file,
-        genotype_file=args.genotype_file,
-        graph_file=args.graph_file,
-        output_folder=args.output_folder
-    )
+        # Run the model training pipeline
+        process_dataset(
+            expression_file=args.expression_file,
+            genotype_file=args.genotype_file,
+            graph_file=args.graph_file,
+            output_folder=args.output_folder
+        )
+
+        print("Model training completed successfully!")
+
+    except FileNotFoundError as e:
+        print(f"ERROR: File not found - {e}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
+        print(f"ERROR: Invalid value - {e}", file=sys.stderr)
+        sys.exit(1)
+    except PermissionError as e:
+        print(f"ERROR: Permission denied - {e}", file=sys.stderr)
+        sys.exit(1)
+    except RuntimeError as e:
+        print(f"ERROR: Runtime error - {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"ERROR: Unexpected error occurred - {e}", file=sys.stderr)
+        sys.exit(1)
