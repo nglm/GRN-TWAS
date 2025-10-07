@@ -3,6 +3,7 @@
 *.vscode
 *.pdf
 grn
+notes
 # no backup files
 *~*
 # no ipynb checkpoints
