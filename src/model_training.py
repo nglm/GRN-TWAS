@@ -14,7 +14,8 @@ from sklearn.metrics import r2_score
 from scipy.optimize import minimize
 import networkx as nx
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from time import time
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 def load_graph(graph_file: str) -> nx.DiGraph:
     """
@@ -145,17 +146,29 @@ def train_ridge(
 ) -> Tuple[RidgeCV, Optional[RidgeCV]]:
     """
     Train Ridge regression models for cis and trans components.
+
+    Use RidgeCV from sklearn to train models with built-in cross-validation
+    for selecting the regularization parameter alpha. alphas are set to a
+    logspace from 0.001 to 1000 with 10 values.
+
+    The first returned model, `cis_model`, is a RidgeCV instance trained on
+    `X_cis` fitted to y.
+
+    The second returned model, `trans_model`, is None if `X_trans` is not
+    provided and otherwise a RidgeCV instance trained on `X_trans` fitted to
+    the residuals, that is `y - cis_model.predict(X_cis)`.
+
     Args:
-        X_cis (np.ndarray): Cis genotype matrix. Shape (n_samples, n_cis_snps).
-        X_trans (np.ndarray or None): Trans genotype matrix. Shape (n_samples, n_trans_snps).
-        y (np.ndarray): Gene expression vector.
+        X_cis (np.ndarray): Cis genotype matrix. Shape `(n_samples, n_cis_snps)`.
+        X_trans (np.ndarray or None): Trans genotype matrix. Shape `(n_samples, n_trans_snps)`.
+        y (np.ndarray): Gene expression vector. Shape `(n_samples,)`.
     Returns:
         tuple: (cis_model, trans_model). cis_model is a RidgeCV instance trained on cis data fitted to y. trans_model is None if X_trans is not provided and otherwise a RidgeCV instance trained on trans data fitted to the residuals, that is y - cis_model.predict(X_cis).
     Raises:
         ValueError: If input arrays have invalid shapes or data.
         RuntimeError: If model training fails.
     """
-    # Validate inputs
+    # ------------------ Validate inputs ------------------
     if X_cis.size == 0:
         raise ValueError("Cis genotype matrix is empty")
     if y.size == 0:
@@ -166,18 +179,22 @@ def train_ridge(
     if X_trans is not None and X_trans.shape[0] != y.shape[0]:
         raise ValueError(f"Sample dimension mismatch: X_trans has {X_trans.shape[0]} samples, y has {y.shape[0]} samples")
 
+    # ---------- Train Ridge models for cis component -----------
     try:
-        # Train Ridge regression for cis component
+        start_time = time()
         cis_model = RidgeCV(alphas=np.logspace(-3, 3, 10)).fit(X_cis, y)
         residuals = y - cis_model.predict(X_cis)
+        print(f"Training cis model took {time() - start_time:.2f} seconds")
     except Exception as e:
         raise RuntimeError(f"Failed to train cis Ridge model: {e}")
 
-    # Train Ridge regression for trans component if available
+    # ------- Train Ridge regression for trans component if available --------
     trans_model = None
     if X_trans is not None:
         try:
+            start_time = time()
             trans_model = RidgeCV(alphas=np.logspace(-3, 3, 10)).fit(X_trans, residuals)
+            print(f"Training trans model took {time() - start_time:.2f} seconds")
         except Exception as e:
             print(f"WARNING: Failed to train trans Ridge model: {e}")
             trans_model = None
@@ -194,22 +211,29 @@ def optimize_weights(
 ) -> np.ndarray:
     """
     Optimize weights for combining cis and trans predictions.
+
+    Use scipy's minimize function to find weights that minimize the negative
+    R^2 score of the combined prediction against the true expression values y.
+    The optimization method used is 'L-BFGS-B' with bounds [0, 1] for each weight.
+
+    If no trans model is provided, returns weights [1.0, 0.0] to use only cis predictions.
+
     Args:
-        y (np.ndarray): Gene expression vector.
-        X_cis (np.ndarray): Cis genotype matrix.
-        X_trans (np.ndarray): Trans genotype matrix.
-        cis_model: Trained Ridge model for cis component.
-        trans_model: Trained Ridge model for trans component.
+        y (np.ndarray): Gene expression vector. Shape `(n_samples,)`.
+        X_cis (np.ndarray): Cis genotype matrix. Shape `(n_samples, n_cis_snps)`.
+        X_trans (np.ndarray): Trans genotype matrix. Shape `(n_samples, n_trans_snps)`.
+        cis_model: Trained Ridge model for cis component. See `train_ridge` function for details.
+        trans_model: Trained Ridge model for trans component. See `train_ridge` function for details.
     Returns:
         np.ndarray: Optimized weights for cis and trans predictions.
     """
-    # Validate inputs
+    # ------------------ Validate inputs ------------------
     if trans_model is None or X_trans is None:
         # If no trans model is available, use only cis predictions
         return np.array([1.0, 0.0])
 
     # Objective function for weight optimization
-    def objective(weights):
+    def objective(weights: Union[list, np.ndarray]) -> float:
         """
         Compute negative R^2 score for given weights.
 
@@ -237,9 +261,12 @@ def optimize_weights(
     initial_weights = [0.5, 0.5]
     bounds = [(0, 1), (0, 1)]
 
+    # ----------------- Optimize weights -----------------
     try:
         # Use scipy minimize to find optimal weights
-        result = minimize(objective, initial_weights, bounds=bounds)
+        result = minimize(
+            objective, initial_weights, bounds=bounds, method='L-BFGS-B'
+        )
         if result.success:
             return result.x
         else:
@@ -261,18 +288,23 @@ def process_dataset(
     The genotype file must be a CSV-like file with a column 'rs_id' for SNP
     identifiers and additional columns for each sample containing genotype
     values (0, 1, 2). The genotype file may contain additional columns such as
-    'chromosome', 'position', 'ref', 'alt' which will be ignored.
+    'chromosome', 'position', 'ref', 'alt' which will be ignored. However, it should not contain any other columns that are not sample columns.
 
     The expression file must be a CSV-like file with a column 'id' for gene
     identifiers and additional columns for each sample containing expression
     values (floats).
 
     The genotype and expression files must have matching sample columns (same
-    names).
+    names and exactly the same number of samples).
 
     The graph file must be a pickle file containing a NetworkX DiGraph where
     each node represents a gene and has an attribute 'cis_snps' which is a list
     of SNP identifiers associated with that gene.
+
+    This function will create a file `model_results.pkl` in the output folder containing a dictionary storing information about the trained models and weights for each gene. More precisely, the dictionary will have gene IDs as keys and for each gene, a sub-dictionary with keys:
+    - 'cis_model': the trained RidgeCV model for the cis component
+    - 'trans_model': the trained RidgeCV model for the trans component (or None if not applicable)
+    - 'weights': the optimized weights for combining cis and trans predictions.
 
     Args:
         expression_file (str): Path to gene expression file.
@@ -367,7 +399,7 @@ def process_dataset(
             # Prepare gene expression data
             y = get_y_data(expression_data, gene, samples)
 
-            # Get cis SNPs for this gene
+            # Get cis SNPs for this gene from the graph
             cis_snp_ids = list(graph.nodes[gene].get('cis_snps', []))
             if not cis_snp_ids:
                 print(f"WARNING: No cis SNPs found for gene {gene}, skipping")
@@ -391,6 +423,7 @@ def process_dataset(
             if X_trans is not None and trans_model is not None:
                 w_cis, w_trans = optimize_weights(y, X_cis, X_trans, cis_model, trans_model)
             else:
+                print("WARNING: No trans model available, using only cis predictions")
                 w_cis, w_trans = 1.0, 0.0
 
             # Store trained models and weights for this gene
@@ -411,7 +444,7 @@ def process_dataset(
 
     print(f"Successfully trained models for {successful_genes} genes, failed for {failed_genes} genes")
 
-    # Save all model results to disk
+    # ------------- Save all model results to disk -------------
     try:
         output_file = os.path.join(output_folder, "model_results.pkl")
         with open(output_file, 'wb') as f:

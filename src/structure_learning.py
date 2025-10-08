@@ -92,7 +92,23 @@ def reconstruct_grn(
     posterior_threshold: float = 0.75
 ) -> None:
     """
-    Reconstruct a gene regulatory network (GRN) for a single tissue dataset using Findr.
+    Reconstruct a gene regulatory network (GRN) for a dataset using Findr.
+
+    To reconstruct a GRN, posterior probabilities for potential regulatory edges are calculated using expression and genotype data. Edges are then filtered based on the specified posterior probabiblity threshold.
+
+    The input dataset must be a CSV-like file, optionally gzipped, with the first column as 'id' (gene/SNP IDs) and subsequent columns as samples. No other columns should be present.
+
+    The Findr library must be properly installed and accessible at the specified path.
+
+    The resulting network is saved as a NetworkX graph object in the output folder along with summary statistics.
+    - `grn_posteriors.csv.gz`: Filtered posterior probability matrix.
+    - `grn_graph.gpickle`: Serialized NetworkX graph object.
+    - `graph_info.json`: Summary statistics of the graph. Available keys are:
+        - `total_nodes`: Total number of nodes in the graph.
+        - `total_edges`: Total number of edges in the graph.
+        - `posterior_threshold`: Posterior probability threshold used for filtering edges.
+        - `input_file`: Path to the input dataset used.
+    
     Args:
         input_file (str): Path to input dataset (CSV).
         output_folder (str): Directory to save GRN results.

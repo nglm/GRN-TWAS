@@ -106,7 +106,7 @@ def calculate_z_score(
         ValueError: If input arrays have incompatible shapes or invalid data.
         RuntimeError: If Z-score calculation fails.
     """
-    # Validate inputs
+    # ------------------- Validate inputs -------------------
     if alpha.size == 0:
         raise ValueError("Alpha array is empty")
     if rho.size == 0:
@@ -130,6 +130,7 @@ def calculate_z_score(
         print("WARNING: Non-positive standard errors found, setting to epsilon")
         se = np.maximum(se, epsilon)
 
+    # ------------------- Calculate Z-score -------------------
     try:
         # Standardize genotype matrix for variance calculations
         X_standardized = StandardScaler().fit_transform(X)
@@ -171,6 +172,9 @@ def process_association(
 ) -> None:
     """
     Perform gene-disease association analysis for a single dataset.
+
+    The GWAS summary statistics file must be a CSV-like file, using tabulations as separators and must contain the columns: 'snpid', 'logOR', and 'se_gc'.
+
     Args:
         expression_file (str): Path to gene expression file.
         genotype_file (str): Path to genotype file.
@@ -300,6 +304,8 @@ def process_association(
                 continue
 
             # TODO! Placeholder: random effect sizes for cis SNPs
+            # Use the trained weights from the model, see
+            # optimize_weights in model_training.py
             alpha_cis = np.random.rand(len(aligned_snps))
             rho_values_cis = np.array([rho_cis[snp] for snp in aligned_snps])
             se_values_cis = np.array([se_cis[snp] for snp in aligned_snps])
@@ -328,6 +334,8 @@ def process_association(
                         aligned_trans_snps = [snp for snp in trans_snp_ids if snp in rho_trans and snp in se_trans]
                         if aligned_trans_snps:
                             # TODO! Placeholder: random effect sizes for trans SNPs
+                            # Use the trained weights from the model, see
+                            # optimize_weights in model_training.py
                             alpha_trans = np.random.rand(len(aligned_trans_snps))
                             rho_values_trans = np.array([rho_trans[snp] for snp in aligned_trans_snps])
                             se_values_trans = np.array([se_trans[snp] for snp in aligned_trans_snps])
