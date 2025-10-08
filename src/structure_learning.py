@@ -53,6 +53,36 @@ def calculate_p_values(
 
     try:
         # Calculate p0: null model posterior probabilities
+        #
+        # See section 5.2.1 of the Findr documentation
+        # "Inference of pairwise regulation posterior probabilities"
+        #
+        # The `pij_rank` functions is used for pairwise regulation probability
+        # inference when only pairwise expression data is available.
+        #
+        # dt parameter:
+        # -----------------
+        # Input matrix of expression levels of A. Element [i,j] is the
+        # expression level of gene i of sample j. The matrix has
+        # dimension (n_features, n_samples).
+        #
+        # dt2 parameter:
+        # -----------------
+        # Input matrix of expression levels of B. Element [i,j] is the
+        # expression level of gene i of sample j. The matrix has
+        # dimension (n_features2, n_samples).
+        #
+        # nodiag parameter:
+        # -----------------
+        # When A (dt param) and B (dt2 param) are the same, log likelihood
+        # ratio between alternative and null hypotheses gives infinity.
+        # To avoid its contamination in the conversion from log
+        # likelihood ratios into probabilities, users need to arrange
+        # data accordingly, when A and B are the same or when A is a subset of
+        # B. The top submatrix of B’s expression data must be identical with A,
+        # and nodiag must be set to True. Otherwise, in the default
+        # configuration, A and B should not have any intersection and
+        # nodiag = False.
         p0_results = method.pij_rank(dt=expression_A, dt2=expression_ALL, nodiag=True)
         p0 = p0_results['p'][:, :n] if n else p0_results['p']
     except Exception as e:
@@ -60,6 +90,14 @@ def calculate_p_values(
 
     try:
         # Calculate other posteriors using genotype and expression data
+        #
+        # See section 5.2.1 of the Findr documentation
+        # "Inference of pairwise regulation posterior probabilities"
+        #
+        # The `pijs_gassist` functions is used for pairwise regulation
+        # probability inference when discrete causal anchor data available.
+        # Findr performs 5 tests for causal inference A → B. The 5 p-values
+        # then allow arbitrary combination by the user.
         p_other_results = method.pijs_gassist(dg=genotype, dt=expression_A, dt2=expression_ALL, nodiag=True)
         p2 = p_other_results['p2'][:, :n] if n else p_other_results['p2']
         p3 = p_other_results['p3'][:, :n] if n else p_other_results['p3']
@@ -71,6 +109,22 @@ def calculate_p_values(
     # Combine posteriors for downstream analysis
     p2p3 = p2 * p3
     p2p5 = p2 * p5
+
+    # See "4.3 Subtest combination" in Findr tutorial
+    #
+    # Findr computes the final probability of regulation by combining the
+    # subtests as:
+    #                          p = 0.5 * (p2 * p5 + p4)
+    # By combining the secondary linkage and controlled tests, the first term
+    # verifies that the correlation between g_i and g_j is not entirely due to
+    # pleiotropy. By replacing the conditional independence test in [9] with
+    # the controlled test, this combination is robust against hidden confounders
+    # and technical variations. On the other hand, the relevance test in the
+    # second term can identify interactions that arise from the indirect effect
+    # e_i → g_i → g_j but are too weak to be detected by the secondary linkage
+    # test. However, in such cases the direction of regulation cannot be
+    # determined. The coefficient 0.5 simply assigns half of the probability
+    # to each direction.
     p = 0.5 * (p2p5 + p4)
 
     # Return all relevant posterior probabilities
@@ -108,7 +162,7 @@ def reconstruct_grn(
         - `total_edges`: Total number of edges in the graph.
         - `posterior_threshold`: Posterior probability threshold used for filtering edges.
         - `input_file`: Path to the input dataset used.
-    
+
     Args:
         input_file (str): Path to input dataset (CSV).
         output_folder (str): Directory to save GRN results.
