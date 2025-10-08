@@ -57,7 +57,7 @@ def calculate_posteriors(
         # See section 5.2.1 of the Findr documentation
         # "Inference of pairwise regulation posterior probabilities"
         #
-        # The `pij_rank` functions is used for pairwise regulation probability
+        # The `pij_rank` function is used for pairwise regulation probability
         # inference when only pairwise expression data is available.
         #
         # dt parameter:
@@ -100,7 +100,7 @@ def calculate_posteriors(
         # See section 5.2.1 of the Findr documentation
         # "Inference of pairwise regulation posterior probabilities"
         #
-        # The `pijs_gassist` functions is used for pairwise regulation
+        # The `pijs_gassist` function is used for pairwise regulation
         # probability inference when discrete causal anchor data available.
         # Findr performs 5 tests for causal inference A → B. The 5 p-values
         # then allow arbitrary combination by the user.
