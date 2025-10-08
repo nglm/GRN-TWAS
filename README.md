@@ -1,6 +1,6 @@
 # Gene Regulatory Network-Driven Transcriptome-Wide Association Studies (GRN-TWAS)
 
-This repository is a fork from [guutama/GRN-TWAS](https://github.com/guutama/GRN-TWAS) which implements a novel framework that integrates **tissue-specific gene regulatory networks (GRNs)** into **transcriptome-wide association studies (TWAS)** for studying gene-complex disease associations. You can find details of this framework in the research publication [*Predicting the genetic component of gene expression using gene regulatory networks* – Mohammad and Michoel, 2024](https://academic.oup.com/bioinformaticsadvances/article/4/1/vbae180/7907615)[^GNR-TWAS].
+This repository is a fork from [guutama/GRN-TWAS](https://github.com/guutama/GRN-TWAS) which implements a novel framework that integrates **tissue-specific gene regulatory networks (GRNs)** into **transcriptome-wide association studies (TWAS)** for studying gene-complex disease associations. You can find details of this framework in the pre-print article [*A Network-Driven Framework for Enhancing Gene-Disease Association Studies in Coronary Artery Disease* – Mohammad, Björkegren and Michoel, 2025](https://arxiv.org/pdf/2501.19030)[^GNR-TWAS].
 
 ## Key Features
 
@@ -70,5 +70,5 @@ This project uses three main data sources:
       ...           ...        ...
       ```
 
-[^GNR-TWAS]: Gutama Ibrahim Mohammad, Tom Michoel, Predicting the genetic component of gene expression using gene regulatory networks, Bioinformatics Advances, Volume 4, Issue 1, 2024, vbae180, https://doi.org/10.1093/bioadv/vbae180
+[^GNR-TWAS]: Mohammad GI, Björkegren JL, Michoel T. A Network-Driven Framework for Enhancing Gene-Disease Association Studies in Coronary Artery Disease. ArXiv [Preprint]. 2025 Jan 31:arXiv:2501.19030v1. PMID: 39975434; PMCID: PMC11838773.
 [^FINDR]: Wang L, Michoel T (2017) Efficient and accurate causal inference with hidden confounders from genome-transcriptome variation data. PLoS Comput Biol 13(8): e1005703. https://doi.org/10.1371/journal.pcbi.1005703
