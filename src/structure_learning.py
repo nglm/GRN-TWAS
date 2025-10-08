@@ -83,6 +83,12 @@ def calculate_p_values(
         # and nodiag must be set to True. Otherwise, in the default
         # configuration, A and B should not have any intersection and
         # nodiag = False.
+        #
+        # Output:
+        #-----------------
+        # Output matrix of inferred probability of correlation A...B versus no
+        # correlation A...B. Element [i,j] is the probability of gene i being
+        # correlated with gene j. The matrix has dimension (n_features, n_features2).
         p0_results = method.pij_rank(dt=expression_A, dt2=expression_ALL, nodiag=True)
         p0 = p0_results['p'][:, :n] if n else p0_results['p']
     except Exception as e:
@@ -155,13 +161,19 @@ def reconstruct_grn(
     """
     Reconstruct a gene regulatory network (GRN) for a dataset using Findr.
 
-    To reconstruct a GRN, posterior probabilities for potential regulatory edges are calculated using expression and genotype data. Edges are then filtered based on the specified posterior probabiblity threshold.
+    To reconstruct a GRN, posterior probabilities for potential regulatory
+    edges are calculated using expression and genotype data. Edges are then
+    filtered based on the specified posterior probabiblity threshold.
 
-    The input dataset must be a CSV-like file, optionally gzipped, with the first column as 'id' (gene/SNP IDs) and subsequent columns as samples. No other columns should be present.
+    The input dataset must be a CSV-like file, optionally gzipped, with the
+    first column as 'id' (gene/SNP IDs) and subsequent columns as samples. No
+    other columns should be present.
 
-    The Findr library must be properly installed and accessible at the specified path.
+    The Findr library must be properly installed and accessible at the
+    specified path.
 
-    The resulting network is saved as a NetworkX graph object in the output folder along with summary statistics.
+    The resulting network is saved as a NetworkX graph object in the output
+    folder along with summary statistics.
     - `grn_posteriors.csv.gz`: Filtered posterior probability matrix.
     - `grn_graph.gpickle`: Serialized NetworkX graph object.
     - `graph_info.json`: Summary statistics of the graph. Available keys are:
