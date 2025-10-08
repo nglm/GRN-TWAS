@@ -98,6 +98,13 @@ def calculate_p_values(
         # probability inference when discrete causal anchor data available.
         # Findr performs 5 tests for causal inference A → B. The 5 p-values
         # then allow arbitrary combination by the user.
+        #
+        # `dg` parameter:
+        # -----------------
+        # Input matrix of best eQTL genotype data E(A), each row of which is the best
+        # eQTL of the corresponding row of dt. Element [i,j] is the genotype value
+        # of the best eQTL of gene i of sample j, and should be among values
+        # 0, 1, . . . , na. The matrix has dimension (n_features, n_samples).
         p_other_results = method.pijs_gassist(dg=genotype, dt=expression_A, dt2=expression_ALL, nodiag=True)
         p2 = p_other_results['p2'][:, :n] if n else p_other_results['p2']
         p3 = p_other_results['p3'][:, :n] if n else p_other_results['p3']
