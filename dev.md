@@ -29,7 +29,7 @@ GRN-TWAS/
 
 - **Purpose**: Reconstructs gene regulatory networks (GRNs) from gene expression and genotype data using the Findr library.
 - **Key Functions**:
-  - `calculate_p_values`: Computes posterior probabilities for network edges using Findr.
+  - `calculate_posteriors`: Computes posterior probabilities for network edges using Findr.
   - `reconstruct_grn`: Loads data, runs GRN inference, filters edges, saves results and graph statistics.
 - **Usage**: Run as a standalone script or via the main pipeline. Requires input data in CSV format and the Findr library path.
 

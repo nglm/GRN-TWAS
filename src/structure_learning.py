@@ -14,7 +14,7 @@ import json
 import sys
 from typing import Any, Dict, Optional
 
-def calculate_p_values(
+def calculate_posteriors(
     expression_A: np.ndarray,
     expression_ALL: np.ndarray,
     genotype: np.ndarray,
@@ -111,6 +111,39 @@ def calculate_p_values(
         # eQTL of the corresponding row of dt. Element [i,j] is the genotype value
         # of the best eQTL of gene i of sample j, and should be among values
         # 0, 1, . . . , na. The matrix has dimension (n_features, n_samples).
+        #
+        # Output: `res`
+        #-----------------
+        # res["p1"] – Shape: (n_features,)
+        # Output vector of inferred probability of test 1, E(A) → A
+        # (alternative) versus E(A) → A (null). res["p1"][i] is the probability
+        # of best eQTL of gene i regulates gene i.
+        # For nodiag=True, uses diagonal elements of p2. Consider
+        # replacing p1 with your own (1-FDR) from eQTL discovery.
+        #
+        # res["p2"] – Shape: (n_features, n_features2)
+        # Output matrix of inferred probability of test 2,
+        # E(A) → A...B with E(A) → B(alternative) versus E(A) → A ← B (null).
+        # res["p2"][i,j] is the probability of alternative hypothesis for
+        # A = gene_i and B = gene_j.
+        #
+        # res["p3"] – Shape: (n_features, n_features2)
+        # Output matrix of inferred probability of test 3,
+        # E(A) → A → B (null) versus E(A) → A...B with E(A) → B (alternative).
+        # res["p3"][i,j] is the probability of null hypothesis for A = gene_i
+        # and B = gene_j.
+        #
+        # res["p4"] – Shape: (n_features, n_features2)
+        # Output matrix of inferred probability of test 4,
+        # B ← E(A) → A with A...B (alternative) versus E(A) → A   B (null).
+        # res["p4"][i,j] is the probability of alternative hypothesis for A = gene_i
+        # and B = gene_j.
+        #
+        # res["p5"] – Shape: (n_features, n_features2)
+        # Output matrix of inferred probability of test 5,
+        # B ← E(A) → A with A...B (alternative) versus B ← E(A) → A (null).
+        # res["p5"][i,j] is the probability of alternative hypothesis for A = gene_i
+        # and B = gene_j.
         p_other_results = method.pijs_gassist(dg=genotype, dt=expression_A, dt2=expression_ALL, nodiag=True)
         p2 = p_other_results['p2'][:, :n] if n else p_other_results['p2']
         p3 = p_other_results['p3'][:, :n] if n else p_other_results['p3']
@@ -248,7 +281,7 @@ def reconstruct_grn(
 
     # Calculate p-values and posterior probabilities for network edges
     try:
-        posteriors = calculate_p_values(expression_A, expression_ALL, genotype, findr_lib)
+        posteriors = calculate_posteriors(expression_A, expression_ALL, genotype, findr_lib)
     except Exception as e:
         raise RuntimeError(f"Failed to calculate posterior probabilities: {e}")
 
